@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body style="margin:0;padding:0;background:#f4f7fc;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f7fc;padding:24px 12px;">
+    <tr>
+        <td align="center">
+            <!-- Card -->
+            <table role="presentation" width="760" cellpadding="0" cellspacing="0" border="0" style="max-width:760px;background:#ffffff;border-radius:16px;border:1px solid rgba(15,23,42,0.08);box-shadow:0 8px 28px rgba(15,23,42,0.08);overflow:hidden;">
+                <!-- Header -->
+                <tr>
+                    <td style="padding:20px 22px;background:#0b63ff;background-image:linear-gradient(92deg,#0b63ff,#06b6d4);color:#ffffff;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td style="vertical-align:middle;">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                            <td style="vertical-align:middle;">
+                                                <img src="https://cdn-icons-png.flaticon.com/512/1048/1048313.png"
+                                                     alt="EV Logo" width="56" height="56"
+                                                     style="display:block;border-radius:14px;background:rgba(255,255,255,0.15);padding:10px;box-shadow:inset 0 -6px 18px rgba(255,255,255,0.08);">
+                                            </td>
+                                            <td style="vertical-align:middle;padding-left:12px;">
+                                                <div style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:.2px;margin:0;color:#ffffff;">
+                                                    Booking bị hủy tự động
+                                                </div>
+                                                <div style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:13px;opacity:.95;margin-top:2px;color:#ffffff;">
+                                                    Thông báo về booking của bạn
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td style="vertical-align:middle;" align="right">
+                                    <!-- trống -->
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding:26px 24px 14px 24px;color:#0f172a;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                        <!-- Pill -->
+                        <div style="display:inline-block;padding:6px 12px;border-radius:999px;background:#fef2f2;color:#b91c1c;font-weight:700;font-size:13px;border:1px solid rgba(185,28,28,0.15);margin-bottom:14px;">
+                            ⚠️ Booking quá hạn
+                        </div>
+
+                        <h2 style="margin:0 0 8px 0;font-size:16px;font-weight:600;color:#0f172a;">
+                            Xin chào <span th:text="${displayName}">bạn</span>,
+                        </h2>
+
+                        <p style="margin:0 0 10px 0;font-size:14px;color:#334155;line-height:1.6;">
+                            Booking <strong>#<span th:text="${bookingId}">0000</span></strong> của bạn đã bị
+                            <strong>hủy tự động</strong> vì đã vượt quá thời gian cho phép.
+                        </p>
+
+                        <!-- 2-col grid using table -->
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">
+                            <tr>
+                                <!-- Col 1 -->
+                                <td width="50%" style="padding:8px 8px 8px 0;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border:1px solid rgba(15,23,42,0.08);border-radius:12px;">
+                                        <tr>
+                                            <td style="padding:14px 16px;">
+                                                <div style="font-size:12px;color:#64748b;letter-spacing:.3px;text-transform:uppercase;margin:0 0 4px 0;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                                                    Trạm
+                                                </div>
+                                                <div style="font-size:15px;font-weight:700;color:#0f172a;font-family:Segoe UI,Roboto,Arial,sans-serif;" th:text="${stationName}">
+                                                    EV Station
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+
+                                <!-- Col 2 -->
+                                <td width="50%" style="padding:8px 0 8px 8px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border:1px solid rgba(15,23,42,0.08);border-radius:12px;">
+                                        <tr>
+                                            <td style="padding:14px 16px;">
+                                                <div style="font-size:12px;color:#64748b;letter-spacing:.3px;text-transform:uppercase;margin:0 0 4px 0;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                                                    Khung giờ
+                                                </div>
+                                                <div style="font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                              <span style="display:inline-block;padding:8px 14px;border-radius:999px;background:linear-gradient(180deg,#f1f5ff,#ffffff);color:#0b1b3a;font-weight:700;font-size:13px;border:1px solid rgba(11,99,255,0.20);box-shadow:0 2px 10px rgba(11,99,255,0.08);">
+                                <span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:linear-gradient(90deg,#0b63ff,#06b6d4);margin-right:8px;vertical-align:middle;"></span>
+                                <span th:text="${timeRange}">10:00 01/01/2025 - 11:00 01/01/2025</span>
+                              </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <!-- Col 3 -->
+                                <td width="50%" style="padding:8px 8px 8px 0;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border:1px solid rgba(15,23,42,0.08);border-radius:12px;">
+                                        <tr>
+                                            <td style="padding:14px 16px;">
+                                                <div style="font-size:12px;color:#64748b;letter-spacing:.3px;text-transform:uppercase;margin:0 0 4px 0;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                                                    Vị trí
+                                                </div>
+                                                <div style="font-size:15px;font-weight:700;color:#0f172a;font-family:Segoe UI,Roboto,Arial,sans-serif;" th:text="${slotName}">
+                                                    Cổng 2
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+
+                                <!-- Col 4 -->
+                                <td width="50%" style="padding:8px 0 8px 8px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9fafb;border:1px solid rgba(15,23,42,0.08);border-radius:12px;">
+                                        <tr>
+                                            <td style="padding:14px 16px;">
+                                                <div style="font-size:12px;color:#64748b;letter-spacing:.3px;text-transform:uppercase;margin:0 0 4px 0;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                                                    Lý do
+                                                </div>
+                                                <div style="font-size:15px;font-weight:700;color:#0f172a;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+                                                    Quá thời gian bắt đầu
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p style="margin:12px 0 0 0;font-size:14px;color:#64748b;line-height:1.6;">
+                            Nếu bạn vẫn cần sạc, vui lòng đặt lại khung giờ mới trong ứng dụng hoặc liên hệ hỗ trợ khách hàng để được giúp đỡ.
+                        </p>
+
+                        <!-- Divider -->
+                        <div style="height:1px;background:rgba(0,0,0,0.06);margin:20px 0;"></div>
+
+                        <p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">
+                            Cảm ơn bạn đã sử dụng <strong>EV Management</strong>.<br>
+                            Lưu ý: hệ thống có thể tự động hủy booking nếu không được xác nhận hoặc check-in đúng thời gian.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            <!-- /Card -->
+        </td>
+    </tr>
+</table>
+</body>
+</html>

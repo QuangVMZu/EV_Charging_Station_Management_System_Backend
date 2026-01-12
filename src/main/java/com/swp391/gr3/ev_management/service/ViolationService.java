@@ -1,0 +1,26 @@
+package com.swp391.gr3.ev_management.service;
+
+import com.swp391.gr3.ev_management.dto.request.ViolationRequest;
+import com.swp391.gr3.ev_management.dto.response.ViolationResponse;
+import com.swp391.gr3.ev_management.entity.Driver;
+import com.swp391.gr3.ev_management.entity.DriverViolation;
+import com.swp391.gr3.ev_management.enums.ViolationStatus;
+
+import java.util.List;
+
+public interface ViolationService {
+
+    //Tạo violation mới và TỰ ĐỘNG ban nếu >= 3 vi phạm
+    ViolationResponse createViolation(Long userId, ViolationRequest request);
+
+    //Lấy tất cả vi phạm của driver theo userId
+    List<ViolationResponse> getViolationsByUserId(Long userId);
+
+    //Lấy vi phạm theo status
+    List<ViolationResponse> getViolationsByUserIdAndStatus(Long userId, ViolationStatus status);
+
+    //Đếm số vi phạm ACTIVE của driver
+    int countActiveViolations(Long userId);
+
+    void attachViolationToTriplet(Driver driver, DriverViolation violation);
+}
