@@ -65,4 +65,10 @@ public class ChargingSession {
 
     @OneToMany(mappedBy = "session", fetch = FetchType.LAZY)
     private List<Notification> notifications;
+
+    @Column
+    private Long chargingMinutes;
+
+    @Column
+    private Long overstayMinutes;
 }

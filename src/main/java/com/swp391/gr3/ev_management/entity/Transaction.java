@@ -55,7 +55,7 @@ public class Transaction {
     private Driver driver;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "InvoiceID", nullable = false)
+    @JoinColumn(name = "InvoiceID", nullable = false, unique = true)
     private Invoice invoice; // nullable - not all transactions are invoice payments why? vậy sao thống kê cuối tháng để cho phân tích nhỉ
 
     @ManyToOne(fetch = FetchType.LAZY)

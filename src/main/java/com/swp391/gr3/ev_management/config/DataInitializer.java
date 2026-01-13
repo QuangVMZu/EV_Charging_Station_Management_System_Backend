@@ -68,7 +68,7 @@ public class DataInitializer implements CommandLineRunner {
             initChargingPoints();     // seed điểm sạc theo Seed_Data
 //            initSlotAvailability();   // seed mẫu slot theo Seed_Data
             initStaffs();             // tạo 1 staff mặc định + map bảng Staffs
-//            initTariffs();            // seed bảng Tariff
+            initTariffs();            // seed bảng Tariff
             initPaymentMethods();     // seed bảng PaymentMethod
             initBanDrivers();
             initBannedDriverViolations();

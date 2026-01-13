@@ -18,6 +18,7 @@ public class StopCharSessionResponseMapper {
         return base(cs, booking, pointNumber)
                 .pricePerKWh(tariff != null ? tariff.getPricePerKWh() : 0.0)
                 .currency(tariff != null ? tariff.getCurrency() : null)
+                .pricePerMin(tariff != null ? tariff.getPricePerMin() : 0.0)
                 .build();
     }
 
@@ -28,6 +29,7 @@ public class StopCharSessionResponseMapper {
     ) {
         return base(cs, booking, pointNumber)
                 .pricePerKWh(0.0)
+                .pricePerMin(0.0)
                 .currency(null)
                 .build();
     }
@@ -62,6 +64,8 @@ public class StopCharSessionResponseMapper {
                 .cost(cs.getCost())
                 .status(cs.getStatus())
                 .initialSoc(cs.getInitialSoc())
-                .finalSoc(cs.getFinalSoc());
+                .finalSoc(cs.getFinalSoc())
+                .chargingMinutes(cs.getChargingMinutes())
+                .overstayMinutes(cs.getOverstayMinutes());
     }
 }

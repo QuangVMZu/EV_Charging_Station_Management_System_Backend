@@ -275,4 +275,6 @@ where u.userId = :userId
             @Param("status") TransactionStatus status,
             Pageable pageable
     );
+
+    Optional<Transaction> findByInvoice_InvoiceId(Long invoiceId);
 }

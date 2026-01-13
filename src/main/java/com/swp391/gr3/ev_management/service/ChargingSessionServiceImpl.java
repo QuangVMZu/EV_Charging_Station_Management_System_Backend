@@ -175,18 +175,13 @@ public class ChargingSessionServiceImpl implements ChargingSessionService {
     }
 
     @Override
-    @Transactional // Dừng phiên sạc theo yêu cầu (từ hệ thống/thiết bị…), cập nhật trạng thái & số liệu trong TX
+    @Transactional
     public StopCharSessionResponse stopChargingSession(StopCharSessionRequest request) {
-        // 1) Tìm session cần dừng theo sessionId trong request
         ChargingSession session = chargingSessionRepository.findById(request.getSessionId())
                 .orElseThrow(() -> new ErrorException("Session not found"));
 
-        // 2) Xác định thời điểm kết thúc phiên sạc theo TENANT_ZONE (VN)
         LocalDateTime endTime = LocalDateTime.now(TENANT_ZONE);
 
-        // 3) Xác định final SOC:
-        //    - Ưu tiên: SOC từ request (nếu có)
-        //    - Fallback: Lấy từ cache nếu không có từ request
         Integer finalSocIfAny;
         if (request.getFinalSoc() != null && request.getFinalSoc() >= session.getInitialSoc()) {
             finalSocIfAny = request.getFinalSoc();
@@ -194,13 +189,11 @@ public class ChargingSessionServiceImpl implements ChargingSessionService {
             Integer cachedSoc = sessionSocCache.get(session.getSessionId()).orElse(null);
             finalSocIfAny = (cachedSoc != null && !cachedSoc.equals(session.getInitialSoc()))
                     ? cachedSoc
-                    : null; // nếu không thoả điều kiện -> để null, handler sẽ tự xử lý
+                    : null;
         }
 
-        // 4) Ủy quyền việc dừng session cho TX handler
-        //    - stopSessionInternalTx thực hiện update đầy đủ: endTime, finalSoc, status, totalEnergy,...
-        //    - StopInitiator.SYSTEM_AUTO: đánh dấu tác nhân dừng là hệ thống/tự động
-        return txHandler.stopSessionInternalTx(session.getSessionId(), finalSocIfAny, endTime, StopInitiator.SYSTEM_AUTO);
+        // ✅ đổi SYSTEM_AUTO -> DRIVER (nếu endpoint này dùng cho driver app)
+        return txHandler.stopSessionInternalTx(session.getSessionId(), finalSocIfAny, endTime, StopInitiator.DRIVER);
     }
 
     @Override

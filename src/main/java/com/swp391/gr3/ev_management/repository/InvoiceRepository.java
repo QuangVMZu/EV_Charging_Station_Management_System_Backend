@@ -99,7 +99,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice,Long> {
      *
      * @return tổng doanh thu toàn hệ thống
      */
-    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoice i")
+    @Query("SELECT COALESCE(SUM(i.amount), 0) FROM Invoice i WHERE i.status = 'PAID'")
     double sumAll();
 
 

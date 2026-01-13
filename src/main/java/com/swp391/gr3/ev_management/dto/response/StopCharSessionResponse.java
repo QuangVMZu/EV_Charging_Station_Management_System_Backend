@@ -22,5 +22,8 @@ public class StopCharSessionResponse {
     private Integer initialSoc; // thêm
     private Integer finalSoc;   // thêm
     private Double pricePerKWh; // thêm
+    private Double pricePerMin;
     private String currency;
+    private Long chargingMinutes;
+    private Long overstayMinutes;
 }
