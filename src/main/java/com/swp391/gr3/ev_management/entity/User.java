@@ -68,13 +68,8 @@ public class User {
     private LocalDateTime updatedAt;
 
     // BR-01: Account locking after 3 failed attempts
-    //Todo: kích hoạt tính năng này sau khi hoàn thành chức năng đăng nhập
-//    @Column(name = "FailedAttempt")
-//    @Builder.Default
-//    private int failedAttempt = 0;
-//
-//    @Column(name = "LockTime")
-//    private LocalDateTime lockTime;
+    // Note: Failed login tracking được xử lý bằng in-memory cache (LoginAttemptService)
+    // để tránh thay đổi cấu trúc database
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "RoleID")
