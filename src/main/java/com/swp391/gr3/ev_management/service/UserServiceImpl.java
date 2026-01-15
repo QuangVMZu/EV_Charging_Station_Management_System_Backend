@@ -46,6 +46,7 @@ public class UserServiceImpl implements UserService{
     private final ChargingStationService chargingStationService; // Nghiệp vụ trạm sạc (dùng khi assign staff)
     private final ChargingSessionService chargingSessionService; // Dùng để đếm số sessions theo user
     private final UserResponseMapper userResponseMapper;         // Map User -> GetUsersResponse
+    private final LoginAttemptService loginAttemptService;       // Theo dõi failed login attempts
 
     /**
      * Lấy User theo phoneNumber + passwordHash (cũ, không dùng Spring Security).
@@ -197,6 +198,7 @@ public class UserServiceImpl implements UserService{
      * - Nếu mọi thứ ok -> trả về User.
      */
     @Override
+    @Transactional
     public User authenticate(String phoneNumber, String rawPassword) {
         // 1️⃣ Kiểm tra user tồn tại
         User user = userRepository.findUsersByPhoneNumber(phoneNumber);
@@ -204,7 +206,18 @@ public class UserServiceImpl implements UserService{
             throw new ErrorException("Số điện thoại không tồn tại");
         }
 
-        // 2️⃣ Kiểm tra trạng thái hoạt động (tuỳ role)
+        // 2️⃣ Kiểm tra tài khoản bị khóa vĩnh viễn
+        if (loginAttemptService.isPermanentlyLocked(phoneNumber)) {
+            throw new ErrorException("Tài khoản của bạn đã bị khóa vĩnh viễn. Vui lòng liên hệ Admin để được hỗ trợ.");
+        }
+
+        // 3️⃣ Kiểm tra tài khoản đang bị khóa tạm thời
+        if (loginAttemptService.isAccountLocked(phoneNumber)) {
+            long minutesLeft = loginAttemptService.getMinutesUntilUnlock(phoneNumber);
+            throw new ErrorException("Tài khoản đang bị khóa. Vui lòng thử lại sau " + minutesLeft + " phút.");
+        }
+
+        // 4️⃣ Kiểm tra trạng thái hoạt động (tuỳ role)
         boolean isDriverActive = user.getDriver() != null
                 && user.getDriver().getStatus() == DriverStatus.ACTIVE;
 
@@ -219,12 +232,44 @@ public class UserServiceImpl implements UserService{
             throw new ErrorException("Tài khoản của bạn đang bị khóa hoặc không hoạt động");
         }
 
-        // 3️⃣ Kiểm tra mật khẩu (so sánh hash)
+        // 5️⃣ Kiểm tra mật khẩu (so sánh hash)
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            throw new ErrorException("Mật khẩu không chính xác");
+            // ❌ Sai mật khẩu -> tăng failed attempts
+            loginAttemptService.loginFailed(phoneNumber);
+            
+            int failedAttempts = loginAttemptService.getFailedAttempts(phoneNumber);
+            
+            // Cảnh báo sau 3 lần sai
+            if (failedAttempts == 3) {
+                throw new ErrorException("Mật khẩu không chính xác. Bạn đã nhập sai 3 lần. Nếu nhập sai thêm 1 lần nữa, tài khoản sẽ bị khóa.");
+            }
+            
+            // Khóa tài khoản sau 4 lần sai trở lên
+            if (failedAttempts >= 4) {
+                int lockCount = loginAttemptService.getLockCount(phoneNumber);
+                loginAttemptService.lockAccount(phoneNumber);
+                
+                if (lockCount == 0) {
+                    // Lần khóa thứ 1: 1 phút
+                    throw new ErrorException("Tài khoản đã bị khóa 1 phút do nhập sai mật khẩu quá nhiều lần.");
+                } else if (lockCount == 1) {
+                    // Lần khóa thứ 2: 5 phút
+                    throw new ErrorException("Tài khoản đã bị khóa 5 phút do nhập sai mật khẩu quá nhiều lần.");
+                } else if (lockCount == 2) {
+                    // Lần khóa thứ 3: 30 phút
+                    throw new ErrorException("Tài khoản đã bị khóa 30 phút do nhập sai mật khẩu quá nhiều lần.");
+                } else {
+                    // Lần khóa thứ 4+: Khóa vĩnh viễn
+                    throw new ErrorException("Tài khoản đã bị khóa vĩnh viễn do nhập sai mật khẩu quá nhiều lần. Vui lòng liên hệ Admin để được hỗ trợ.");
+                }
+            }
+            
+            // Thông báo số lần còn lại
+            throw new ErrorException("Mật khẩu không chính xác. Bạn còn " + (3 - failedAttempts) + " lần thử.");
         }
 
-        // ✅ Thành công -> trả về user
+        // ✅ Thành công -> reset failed attempts và trả về user
+        loginAttemptService.loginSucceeded(phoneNumber);
         return user;
     }
 
