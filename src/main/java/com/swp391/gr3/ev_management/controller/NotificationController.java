@@ -2,9 +2,11 @@ package com.swp391.gr3.ev_management.controller;
 
 import com.swp391.gr3.ev_management.dto.response.NotificationResponse;
 import com.swp391.gr3.ev_management.service.NotificationsService;
+import com.swp391.gr3.ev_management.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationsService notificationsService; // ✅ Service xử lý nghiệp vụ liên quan đến thông báo (notifications)
+    private final TokenService tokenService;
 
     // =========================================================================
     // ✅ 1. ĐÁNH DẤU THÔNG BÁO LÀ ĐÃ ĐỌC
@@ -90,6 +93,15 @@ public class NotificationController {
         Long userId = Long.valueOf(auth.getName()); // 🟢 Lấy userId của user đang đăng nhập
         // 🟢 Gọi service để đếm số lượng thông báo có trạng thái "chưa đọc"
         return ResponseEntity.ok(notificationsService.getUnreadCount(userId));
+    }
+
+    @PutMapping("/users/notifications/read-all")
+    public ResponseEntity<?> readAllNotifications(HttpServletRequest request) {
+        Long userId = tokenService.extractUserIdFromRequest(request);
+
+        notificationsService.markAllAsRead(userId);
+
+        return ResponseEntity.ok("All notifications marked as read");
     }
 
 }

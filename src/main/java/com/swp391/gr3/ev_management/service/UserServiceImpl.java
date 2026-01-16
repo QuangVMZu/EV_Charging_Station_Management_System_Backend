@@ -162,31 +162,13 @@ public class UserServiceImpl implements UserService{
     @Override
     public ResponseEntity<?> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        // 1) Kiểm tra có header Authorization và bắt đầu bằng "Bearer " hay không
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.badRequest().body("No Bearer token found");
         }
 
-        // 2) Lấy token (cắt "Bearer ")
-        String token = authHeader.substring(7).trim();
-        // 3) Lấy thời điểm hết hạn từ token
-        Instant expiry;
-        try {
-            expiry = tokenService.getExpirationFromJwt(token); // trả về Instant exp
-        } catch (Exception ex) {
-            // Token không hợp lệ -> báo lỗi
-            return ResponseEntity.badRequest().body("Invalid token");
-        }
+        // ✅ blacklist token đến khi hết hạn
+        tokenService.blacklistToken(authHeader);
 
-        // 4) Tính TTL còn lại
-        long ttlSeconds = expiry.getEpochSecond() - Instant.now().getEpochSecond();
-        if (ttlSeconds <= 0) {
-            // Token đã hết hạn -> xem như logout ok, không cần blacklist
-            return ResponseEntity.ok("Token already expired");
-        }
-
-        // 5) Nếu cần có thể lưu token vào blacklist với TTL = ttlSeconds
-        // (Ở code hiện tại chỉ trả về message)
         return ResponseEntity.ok("Logged out successfully");
     }
 
