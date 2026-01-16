@@ -3,6 +3,7 @@ package com.swp391.gr3.ev_management.repository;
 import com.swp391.gr3.ev_management.entity.Notification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -112,5 +113,14 @@ public interface NotificationsRepository extends JpaRepository<Notification, Lon
      */
     @EntityGraph(attributePaths = {"user", "booking"})
     Optional<Notification> findById(Long id);
+
+    @Modifying
+    @Query("""
+        update Notification n
+        set n.status = 'READ', n.readAt = CURRENT_TIMESTAMP
+        where n.user.userId = :userId
+          and (upper(n.status) = 'UNREAD' or lower(n.status) = 'unread')
+    """)
+    int markAllAsReadByUserId(@Param("userId") Long userId);
 
 }
