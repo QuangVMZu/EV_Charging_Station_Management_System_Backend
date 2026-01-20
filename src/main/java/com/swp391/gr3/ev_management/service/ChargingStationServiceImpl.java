@@ -7,6 +7,7 @@ import com.swp391.gr3.ev_management.enums.ChargingStationStatus;
 import com.swp391.gr3.ev_management.exception.ErrorException;
 import com.swp391.gr3.ev_management.mapper.ChargingStationMapper;
 import com.swp391.gr3.ev_management.repository.ChargingStationRepository;
+import com.swp391.gr3.ev_management.utils.GeoUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -45,14 +46,25 @@ public class ChargingStationServiceImpl implements ChargingStationService {
      * - Map danh sách entity sang danh sách DTO bằng Stream API.
      */
     @Override
-    public List<ChargingStationResponse> getAllStations() {
-        // Lấy toàn bộ bản ghi ChargingStation từ DB
-        return chargingStationRepository.findAll() // Lấy toàn bộ danh sách từ DB
-                .stream() // Chuyển sang Stream để có thể map từng phần tử
-                // Với mỗi ChargingStation entity -> map sang ChargingStationResponse DTO
-                .map(chargingStationMapper::toResponse) // Map từng entity -> DTO
-                // Thu kết quả stream về List<ChargingStationResponse>
-                .collect(Collectors.toList()); // Gom lại thành danh sách
+    public List<ChargingStationResponse> getAllStations(Double userLat, Double userLng) {
+        return chargingStationRepository.findAll()
+                .stream()
+                .map(station -> {
+                    ChargingStationResponse res = chargingStationMapper.toResponse(station);
+
+                    if (userLat != null && userLng != null) {
+                        double distance = GeoUtils.haversineKm(
+                                userLat, userLng,
+                                station.getLatitude(), station.getLongitude()
+                        );
+                        res.setDistanceKm(distance);
+                    } else {
+                        res.setDistanceKm(null);
+                    }
+
+                    return res;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

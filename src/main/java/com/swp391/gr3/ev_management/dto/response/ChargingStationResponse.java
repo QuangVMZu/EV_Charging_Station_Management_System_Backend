@@ -15,4 +15,5 @@ public class ChargingStationResponse {
     private String operatingHours;
     private ChargingStationStatus status;
     private LocalDateTime createdAt;
+    private Double distanceKm;
 }

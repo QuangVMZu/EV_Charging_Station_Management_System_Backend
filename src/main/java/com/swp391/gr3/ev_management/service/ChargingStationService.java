@@ -19,7 +19,7 @@ public interface ChargingStationService {
 
     ChargingStationResponse updateChargingStation(long id, ChargingStationRequest request);
 
-    List<ChargingStationResponse> getAllStations();
+    List<ChargingStationResponse> getAllStations(Double userLat, Double userLng);
 
     ChargingStationResponse updateStationStatus(long stationId, ChargingStationStatus newStatus);
 
