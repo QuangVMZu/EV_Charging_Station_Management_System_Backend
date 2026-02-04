@@ -60,6 +60,10 @@ public class ChargingSessionTxHandler {
             LocalDateTime endTime,
             StopInitiator initiator
     ) {
+        if (sessionId == null) throw new ErrorException("sessionId is null");
+        if (endTime == null) throw new ErrorException("endTime is null");
+        if (initiator == null) throw new ErrorException("initiator is null");
+
         // 1) Load session deep
         ChargingSession cs = chargingSessionRepository
                 .findByIdWithBookingVehicleDriverUser(sessionId)
@@ -67,6 +71,15 @@ public class ChargingSessionTxHandler {
 
         if (cs.getStatus() != ChargingSessionStatus.IN_PROGRESS) {
             throw new ErrorException("Session is not currently active");
+        }
+
+        if (cs.getStartTime() == null) throw new ErrorException("Session startTime missing");
+
+        // Nếu endTime < startTime -> set endTime = startTime để tránh âm phút
+        if (endTime.isBefore(cs.getStartTime())) {
+            log.warn("[STOP] endTime < startTime, adjust endTime to startTime. sessionId={} startTime={} endTime={}",
+                    sessionId, cs.getStartTime(), endTime);
+            endTime = cs.getStartTime();
         }
 
         Booking booking = cs.getBooking();
@@ -80,6 +93,7 @@ public class ChargingSessionTxHandler {
         // 3) initialSoc
         int initialSoc = Optional.ofNullable(cs.getInitialSoc())
                 .orElseThrow(() -> new ErrorException("Initial SoC not recorded"));
+        initialSoc = clampSoc(initialSoc);
 
         // 4) finalSoc
         int finalSoc = (finalSocIfAny != null) ? clampSoc(finalSocIfAny) : estimateFinalSoc(cs, endTime);
@@ -87,53 +101,69 @@ public class ChargingSessionTxHandler {
         if (finalSoc > 100) finalSoc = 100;
 
         // 5) duration
-        if (cs.getStartTime() == null) throw new ErrorException("Session startTime missing");
         long sessionMinutes = Math.max(0, ChronoUnit.MINUTES.between(cs.getStartTime(), endTime));
 
-        // 6) ChargingPoint + pointNumber
-        var firstSlot = booking.getBookingSlots().stream()
-                .findFirst()
-                .orElseThrow(() -> new ErrorException("No slot found for booking"));
+        // 6) ChargingPoint + pointNumber (robust)
+        ChargingPoint point = null;
+        String pointNumber = "Unknown";
+        SlotAvailability slotAvailability = null;
 
-        SlotAvailability slotAvailability = firstSlot.getSlot();
-        ChargingPoint point = (slotAvailability != null) ? slotAvailability.getChargingPoint() : null;
-
-        String pointNumber = (point != null && point.getPointNumber() != null)
-                ? point.getPointNumber()
-                : "Unknown";
+        if (booking.getBookingSlots() == null || booking.getBookingSlots().isEmpty()) {
+            log.warn("[STOP] bookingSlots empty. bookingId={} sessionId={}", booking.getBookingId(), sessionId);
+        } else {
+            var firstSlot = booking.getBookingSlots().stream().findFirst().orElse(null);
+            if (firstSlot != null) {
+                slotAvailability = firstSlot.getSlot();
+                point = (slotAvailability != null) ? slotAvailability.getChargingPoint() : null;
+                if (point != null && point.getPointNumber() != null) {
+                    pointNumber = point.getPointNumber();
+                }
+            }
+        }
 
         // 7) battery capacity (fallback)
         Double capDb = (vehicle != null && vehicle.getModel() != null)
                 ? vehicle.getModel().getBatteryCapacityKWh()
                 : null;
-
         double batteryCapacity = (capDb != null && capDb > 0) ? capDb : DEFAULT_BATTERY_CAPACITY_KWH;
 
-        // 8) energyKWh (always compute)
-        double deltaSoc = finalSoc - initialSoc;
-        double energyKWh = round2((deltaSoc / 100.0) * batteryCapacity);
-
-        // 9) ratedKW (FIX: primitive double => không check null)
+        // 8) ratedKW
         double ratedKW = DEFAULT_RATED_KW;
         if (point != null) {
             double p = point.getMaxPowerKW();
             if (p > 0) ratedKW = p;
         }
 
-        // ✅ 10) TÁCH THỜI GIAN: chargingMinutes + overstayMinutes
-        long chargingMinutes = sessionMinutes; // mặc định: chưa đầy thì toàn bộ là thời gian sạc
-        long overstayMinutes = 0;
+        // ✅ 9) minutesToFull + chargingMinutes + overstayMinutes (KHÔNG phụ thuộc finalSoc)
+        long minutesToFull = estimateMinutesToReachTargetSoc(
+                initialSoc, 100, batteryCapacity, ratedKW, CHARGING_EFFICIENCY
+        );
 
-        if (finalSoc >= 100) {
-            long minutesToFull = estimateMinutesToReachTargetSoc(
-                    initialSoc, 100, batteryCapacity, ratedKW, CHARGING_EFFICIENCY
-            );
+        long chargingMinutes;
+        long overstayMinutes;
+
+        // initialSoc >= 100 -> đã đầy từ đầu: toàn bộ là overstay (nếu có thời gian)
+        if (initialSoc >= 100) {
+            chargingMinutes = 0;
+            overstayMinutes = sessionMinutes;
+            finalSoc = 100;
+        } else {
             chargingMinutes = Math.min(sessionMinutes, minutesToFull);
             overstayMinutes = Math.max(0, sessionMinutes - minutesToFull);
+
+            // Nếu thời lượng đã vượt thời gian để đầy -> coi như full 100% (để UI/logic hợp lý)
+            if (sessionMinutes >= minutesToFull) {
+                finalSoc = 100;
+            }
         }
 
-        log.info("[STOP] sessionId={} initiator={} initialSoc={} finalSoc={} sessionMinutes={} chargingMinutes={} overstayMinutes={} cap={} ratedKW={} => energyKWh={}",
-                cs.getSessionId(), initiator, initialSoc, finalSoc, sessionMinutes, chargingMinutes, overstayMinutes, batteryCapacity, ratedKW, energyKWh);
+        // 10) energyKWh (luôn compute theo deltaSoc; finalSoc đã được normalize)
+        double deltaSoc = finalSoc - initialSoc;
+        if (deltaSoc < 0) deltaSoc = 0;
+        double energyKWh = round2((deltaSoc / 100.0) * batteryCapacity);
+
+        log.info("[STOP] sessionId={} initiator={} initialSoc={} finalSoc={} sessionMinutes={} minutesToFull={} chargingMinutes={} overstayMinutes={} cap={} ratedKW={} => energyKWh={}",
+                cs.getSessionId(), initiator, initialSoc, finalSoc, sessionMinutes, minutesToFull, chargingMinutes, overstayMinutes, batteryCapacity, ratedKW, energyKWh);
 
         // 11) connectorType (MUST exist to bill)
         ConnectorType connectorType =
@@ -144,7 +174,6 @@ public class ChargingSessionTxHandler {
                         : null;
 
         if (connectorType == null) {
-            // IMPORTANT: don't silently make it free
             throw new ErrorException("Cannot bill: connectorType is NULL (check chargingPoint.connectorType or vehicle.model.connectorType)");
         }
 
@@ -165,12 +194,17 @@ public class ChargingSessionTxHandler {
         }
 
         // 14) pricing
-        // energyCost luôn tính theo kWh
         double energyCost = round2(energyKWh * pricePerKWh);
 
-        // timeCost chỉ tính cho DRIVER và chỉ phần overstayMinutes sau khi đầy
+        // ✅ timeCost: tính overstay cho DRIVER + SYSTEM_AUTO (tuỳ policy)
         double timeCost = 0.0;
-        if (initiator == StopInitiator.DRIVER && finalSoc >= 100 && overstayMinutes > 0 && pricePerMin > 0) {
+
+        boolean chargeOverstayFee =
+                initiator == StopInitiator.DRIVER
+                        || initiator == StopInitiator.SYSTEM_AUTO; // SYSTEM_AUTO tính như driver
+
+        // chỉ tính khi có overstay thực sự và có giá phút
+        if (chargeOverstayFee && overstayMinutes > 0 && pricePerMin > 0) {
             timeCost = round2(overstayMinutes * pricePerMin);
         }
 
@@ -181,7 +215,7 @@ public class ChargingSessionTxHandler {
 
         // 15) release unused future slots if DRIVER or STAFF stopped
         if (initiator == StopInitiator.DRIVER || initiator == StopInitiator.STAFF) {
-            releaseUnusedFutureSlots(booking, endTime);
+            releaseUnusedFutureSlotsSafe(booking, endTime);
         }
 
         // 16) save session
@@ -192,9 +226,9 @@ public class ChargingSessionTxHandler {
         cs.setCost(totalCost);
         cs.setStatus(ChargingSessionStatus.COMPLETED);
 
-        // ✅ Nếu bạn thêm field vào entity ChargingSession thì mở 2 dòng này:
-        // cs.setChargingMinutes(chargingMinutes);
-        // cs.setOverstayMinutes(overstayMinutes);
+        // Nếu entity có field thì dùng, không thì comment 2 dòng này
+        cs.setChargingMinutes(chargingMinutes);
+        cs.setOverstayMinutes(overstayMinutes);
 
         chargingSessionRepository.save(cs);
         sessionSocCache.remove(cs.getSessionId());
@@ -239,11 +273,11 @@ public class ChargingSessionTxHandler {
         invoice.setStatus(InvoiceStatus.UNPAID);
         invoice.setIssuedAt(LocalDateTime.now());
         invoice.setDriver(driver);
-        invoiceService.save(invoice);
 
-        // ✅ Trả về response: mapper sẽ map thêm chargingMinutes/overstayMinutes (bạn sửa mapper ở dưới)
-        // Nếu bạn CHƯA lưu 2 field vào entity, bạn có thể sửa mapper để nhận 2 biến này (mình đưa cách sửa phía dưới).
-        return stopResponseMapper.mapWithTariff(cs, booking, pointNumber, tariff);
+        invoice = invoiceService.save(invoice);
+        Long invoiceId = invoice.getInvoiceId();
+
+        return stopResponseMapper.mapWithTariff(cs, booking, pointNumber, tariff, invoiceId);
     }
 
     // ===== tariff resolver (robust fallback) =====
@@ -270,7 +304,8 @@ public class ChargingSessionTxHandler {
     }
 
     private static int clampSoc(Integer soc) {
-        return Math.max(0, Math.min(100, (soc == null ? 0 : soc)));
+        int s = (soc == null ? 0 : soc);
+        return Math.max(0, Math.min(100, s));
     }
 
     private static long estimateMinutesToReachTargetSoc(
@@ -284,15 +319,19 @@ public class ChargingSessionTxHandler {
         int to = Math.max(0, Math.min(100, targetSoc));
         if (to <= from) return 0;
 
-        double deltaKWh = ((to - from) / 100.0) * batteryCapacityKWh;
-        double effectiveKW = Math.max(0.1, ratedKW * Math.max(0.1, efficiency));
+        // ratedKW / efficiency guard
+        double eff = Math.max(0.1, efficiency);
+        double kw = Math.max(0.1, ratedKW);
+        double effectiveKW = Math.max(0.1, kw * eff);
+
+        double deltaKWh = ((to - from) / 100.0) * Math.max(1.0, batteryCapacityKWh);
         double hours = deltaKWh / effectiveKW;
 
         return Math.max(0, (long) Math.ceil(hours * 60.0));
     }
 
     private int estimateFinalSoc(ChargingSession session, LocalDateTime endTime) {
-        int initial = Optional.ofNullable(session.getInitialSoc()).orElse(20);
+        int initial = clampSoc(Optional.ofNullable(session.getInitialSoc()).orElse(20));
 
         Booking b = session.getBooking();
         Double capDb = (b != null && b.getVehicle() != null && b.getVehicle().getModel() != null)
@@ -300,13 +339,15 @@ public class ChargingSessionTxHandler {
                 : null;
         double capKWh = (capDb != null && capDb > 0) ? capDb : DEFAULT_BATTERY_CAPACITY_KWH;
 
+        if (session.getStartTime() == null || endTime == null) return initial;
+
         double minutes = Math.max(0, ChronoUnit.MINUTES.between(session.getStartTime(), endTime));
         double hours = minutes / 60.0;
 
         double ratedKW = DEFAULT_RATED_KW;
         if (b != null && b.getBookingSlots() != null && !b.getBookingSlots().isEmpty()) {
             var bs0 = b.getBookingSlots().get(0);
-            if (bs0.getSlot() != null && bs0.getSlot().getChargingPoint() != null) {
+            if (bs0 != null && bs0.getSlot() != null && bs0.getSlot().getChargingPoint() != null) {
                 double p = bs0.getSlot().getChargingPoint().getMaxPowerKW();
                 if (p > 0) ratedKW = p;
             }
@@ -322,12 +363,24 @@ public class ChargingSessionTxHandler {
         return Math.min(100, Math.max(initial, estFinal));
     }
 
-    private void releaseUnusedFutureSlots(Booking booking, LocalDateTime endTime) {
+    private void releaseUnusedFutureSlotsSafe(Booking booking, LocalDateTime endTime) {
+        if (booking == null || endTime == null) return;
         if (booking.getBookingSlots() == null) return;
 
         booking.getBookingSlots().forEach(bs -> {
+            if (bs == null) return;
             SlotAvailability slot = bs.getSlot();
+            if (slot == null) return;
+
+            // guard nulls
+            if (slot.getDate() == null || slot.getTemplate() == null || slot.getTemplate().getStartTime() == null) {
+                log.warn("[RELEASE SLOT] missing date/template/startTime. slotId={}", slot.getSlotId());
+                return;
+            }
+
             LocalDateTime slotStart = slot.getDate().with(slot.getTemplate().getStartTime());
+
+            // endTime <= slotStart => release
             if (!endTime.isAfter(slotStart)) {
                 slot.setStatus(SlotStatus.AVAILABLE);
                 slotAvailabilityService.save(slot);
@@ -339,6 +392,8 @@ public class ChargingSessionTxHandler {
 
     @Transactional
     public void autoStopIfStillRunningTx(Long sessionId, LocalDateTime windowEnd) {
+        if (sessionId == null || windowEnd == null) return;
+
         var opt = chargingSessionRepository.findById(sessionId);
         if (opt.isEmpty()) return;
 
@@ -353,7 +408,7 @@ public class ChargingSessionTxHandler {
         log.info("[AUTO-STOP] sessionId={} windowEnd={} startTime={} initialSoc={} cachedSoc={}",
                 sessionId, windowEnd, session.getStartTime(), session.getInitialSoc(), cachedSoc);
 
-        // SYSTEM_AUTO: bạn đang muốn KHÔNG tính phí thời gian sau khi đầy -> logic trên đã làm đúng
+        // ✅ SYSTEM_AUTO sẽ tính overstay như DRIVER vì overstay không còn phụ thuộc finalSoc>=100 nữa
         stopSessionInternalTx(sessionId, finalSocIfAny, windowEnd, StopInitiator.SYSTEM_AUTO);
     }
 }

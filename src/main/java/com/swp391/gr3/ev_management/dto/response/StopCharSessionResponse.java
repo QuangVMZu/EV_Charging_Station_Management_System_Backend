@@ -26,4 +26,5 @@ public class StopCharSessionResponse {
     private String currency;
     private Long chargingMinutes;
     private Long overstayMinutes;
+    private Long invoiceId;
 }
