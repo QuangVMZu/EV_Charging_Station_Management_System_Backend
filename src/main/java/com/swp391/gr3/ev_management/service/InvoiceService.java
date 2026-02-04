@@ -12,7 +12,7 @@ import java.util.Optional;
 @Service
 public interface InvoiceService {
 
-    void save(Invoice invoice);
+    Invoice save(Invoice invoice);
 
     Optional<Invoice> findBySession_SessionId(Long sessionId);
 
