@@ -34,15 +34,13 @@ public class S3Service {
         this.s3Presigner = s3Presigner;
         this.s3Client = s3Client;
     }
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "application/pdf"
-    );
 
     public FileResponseDTO generatePresignedUploadUrl(CreatePresignedUploadRequest request) {
        validate(request);
+
+        System.out.println("fileName = " + request.getFileName());
+        System.out.println("contentType = " + request.getContentType());
+
 
         String folder = normalizeFolder(request.getFolder());
         String safeFileName = sanitizeFileName(request.getFileName());
@@ -93,14 +91,22 @@ public class S3Service {
 
 //    ==============================HELPER==============================
 private void validate(CreatePresignedUploadRequest request) {
+
+
+    System.out.println("fileName = " + request.getFileName());
+    System.out.println("contentType = " + request.getContentType());
+
     if (request.getFileName() == null || request.getFileName().isBlank()) {
         throw new IllegalArgumentException("thiếu tên file");
     }
     if (request.getContentType() == null || request.getContentType().isBlank()) {
         throw new IllegalArgumentException("thiếu contentType");
     }
-    if (!ALLOWED_CONTENT_TYPES.contains(request.getContentType())) {
-        throw new IllegalArgumentException("sai contentType");
+    if (
+            !request.getContentType().startsWith("image/") &&
+                    !request.getContentType().equals("application/pdf")
+    ) {
+        throw new IllegalArgumentException("Chỉ cho phép file ảnh hoặc PDF");
     }
 }
 
