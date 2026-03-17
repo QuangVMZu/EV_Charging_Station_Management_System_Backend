@@ -18,4 +18,6 @@ public interface NotificationsService {
     void markAsRead(Long notificationId, Long userId);
 
     NotificationResponse getNotificationById(Long notificationId, Long userId);
+
+    void markAllAsRead(Long userId);
 }

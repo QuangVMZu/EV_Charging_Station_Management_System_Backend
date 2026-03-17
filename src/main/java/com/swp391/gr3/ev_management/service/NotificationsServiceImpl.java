@@ -114,4 +114,10 @@ public class NotificationsServiceImpl implements NotificationsService {
         // Trả về DTO thông tin chi tiết (NotificationResponse)
         return notificationMapper.mapToNotificationResponse(notification);
     }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        notificationsRepository.markAllAsReadByUserId(userId);
+    }
 }

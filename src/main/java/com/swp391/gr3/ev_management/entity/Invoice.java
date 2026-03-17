@@ -57,4 +57,19 @@ public class Invoice {
 
     @OneToMany(mappedBy = "invoice", fetch = FetchType.LAZY)
     private List<Transaction> transactions;
+
+    @Column(name="discount_rate_pct", nullable=false)
+    private int discountRatePct = 0; // 0..100
+
+    @Column(name="discount_amount", nullable=false)
+    private Double  discountAmount = 0.0;
+
+    @Column(name="final_amount", nullable=false)
+    private Double finalAmount = 0.0;
+
+    @Column(name="used_points", nullable=false)
+    private int usedPoints = 0;
+
+    @Column(name="use_points_selected", nullable=false)
+    private boolean usePointsSelected = false; // user tick hay không
 }

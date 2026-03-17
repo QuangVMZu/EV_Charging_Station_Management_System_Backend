@@ -15,7 +15,7 @@ import java.util.Optional;
 @Service
 public interface TransactionService {
 
-    void  addTransaction(Transaction transaction);
+    Transaction addTransaction(Transaction incoming);
 
     List<TransactionBriefResponse> findAllDeepGraphByDriverUserId(Long userId);
 

@@ -2,7 +2,9 @@ package com.swp391.gr3.ev_management.repository;
 
 import com.swp391.gr3.ev_management.dto.response.UnpaidInvoiceResponse;
 import com.swp391.gr3.ev_management.entity.Invoice;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -218,4 +220,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice,Long> {
     where st.stationId = :stationId
 """)
     List<Invoice> findInvoiceDetailsByStation(@Param("stationId") Long stationId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Invoice i where i.invoiceId = :id")
+    Optional<Invoice> findByIdForUpdate(@Param("id") Long id);
 }

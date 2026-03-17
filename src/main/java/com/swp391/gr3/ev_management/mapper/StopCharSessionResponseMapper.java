@@ -13,12 +13,14 @@ public class StopCharSessionResponseMapper {
             ChargingSession cs,
             Booking booking,
             String pointNumber,
-            Tariff tariff
+            Tariff tariff,
+            Long invoiceId
     ) {
         return base(cs, booking, pointNumber)
                 .pricePerKWh(tariff != null ? tariff.getPricePerKWh() : 0.0)
                 .currency(tariff != null ? tariff.getCurrency() : null)
                 .pricePerMin(tariff != null ? tariff.getPricePerMin() : 0.0)
+                .invoiceId(invoiceId)
                 .build();
     }
 

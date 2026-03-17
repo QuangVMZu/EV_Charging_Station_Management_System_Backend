@@ -72,11 +72,13 @@ public class ChargingStationController {
     // =========================================================================
     // ✅ 4. MỌI NGƯỜI: LẤY DANH SÁCH TẤT CẢ TRẠM SẠC (GET /)
     // =========================================================================
-    @GetMapping // 🔗 Endpoint: GET /api/charging-stations
     @Operation(summary = "Get all charging stations") // 📝 Swagger mô tả API
-    public ResponseEntity<List<ChargingStationResponse>> getAllStations() {
-        // 🟢 Gọi service để lấy danh sách tất cả trạm sạc trong hệ thống
-        return ResponseEntity.ok(chargingStationService.getAllStations());
+    @GetMapping("/stations")
+    public List<ChargingStationResponse> getStations(
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng
+    ) {
+        return chargingStationService.getAllStations(lat, lng);
     }
 
     // =========================================================================

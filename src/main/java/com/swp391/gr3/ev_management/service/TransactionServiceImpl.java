@@ -31,7 +31,7 @@ public class TransactionServiceImpl implements TransactionService {
      */
     @Override
     @Transactional
-    public void addTransaction(Transaction incoming) {
+    public Transaction addTransaction(Transaction incoming) {
         if (incoming == null) {
             throw new IllegalArgumentException("Transaction is null");
         }
@@ -42,50 +42,44 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Transaction.paymentMethod.methodId is required");
         }
         if (incoming.getCurrency() == null || incoming.getCurrency().isBlank()) {
-            incoming.setCurrency("VND"); // fallback
+            incoming.setCurrency("VND");
         }
         if (incoming.getDescription() == null) {
             incoming.setDescription("");
         }
         if (incoming.getStatus() == null) {
-            incoming.setStatus(TransactionStatus.PENDING); // fallback
+            incoming.setStatus(TransactionStatus.PENDING);
         }
 
         Long invoiceId = incoming.getInvoice().getInvoiceId();
-
         Optional<Transaction> existingOpt = transactionRepository.findByInvoice_InvoiceId(invoiceId);
 
         if (existingOpt.isPresent()) {
             Transaction existing = existingOpt.get();
 
-            // ✅ Nếu bạn muốn KHÓA không cho update khi đã COMPLETED thì bật đoạn này:
-             if (existing.getStatus() == TransactionStatus.COMPLETED) {
-                 log.warn("[TX UPSERT] invoiceId={} already COMPLETED -> skip update (txId={})",
-                         invoiceId, existing.getTransactionId());
-                 return;
-             }
+            // ✅ nếu đã completed thì không update nữa (tránh sửa giao dịch thành công)
+            if (existing.getStatus() == TransactionStatus.COMPLETED) {
+                log.warn("[TX UPSERT] invoiceId={} already COMPLETED -> return existing (txId={})",
+                        invoiceId, existing.getTransactionId());
+                return existing;
+            }
 
-            // ✅ Update các field cần “refresh”
             existing.setAmount(incoming.getAmount());
             existing.setCurrency(incoming.getCurrency());
             existing.setDescription(incoming.getDescription());
             existing.setStatus(incoming.getStatus());
-
-            // quan hệ
             existing.setPaymentMethod(incoming.getPaymentMethod());
-            existing.setDriver(incoming.getDriver()); // nếu có driver thì cập nhật
-            existing.setInvoice(incoming.getInvoice()); // giữ invoice reference
+            existing.setDriver(incoming.getDriver());
+            existing.setInvoice(incoming.getInvoice());
 
-            transactionRepository.save(existing);
-
-            log.info("[TX UPSERT] Updated existing transaction txId={} for invoiceId={}",
-                    existing.getTransactionId(), invoiceId);
-            return;
+            Transaction saved = transactionRepository.save(existing);
+            log.info("[TX UPSERT] Updated txId={} for invoiceId={}", saved.getTransactionId(), invoiceId);
+            return saved;
         }
 
-        // ✅ CREATE mới
-        transactionRepository.save(incoming);
-        log.info("[TX UPSERT] Created new transaction for invoiceId={}", invoiceId);
+        Transaction created = transactionRepository.save(incoming);
+        log.info("[TX UPSERT] Created txId={} for invoiceId={}", created.getTransactionId(), invoiceId);
+        return created;
     }
 
     /**
