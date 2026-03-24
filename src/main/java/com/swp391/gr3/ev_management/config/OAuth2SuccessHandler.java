@@ -42,7 +42,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     // URL callback bên FE để nhận token sau khi đăng nhập Google thành công
     // Có thể cấu hình trong application.properties: app.oauth2.frontend-callback=...
-    @Value("${app.oauth2.frontend-callback:http://localhost:5173/}")
+    @Value("${app.oauth2.frontend-callback:https://evcsystem.online/}")
     private String frontendCallback;
 
     /**

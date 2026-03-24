@@ -243,22 +243,19 @@ public class ChargingSessionTxHandler {
             done.setUser(user);
             done.setBooking(booking);
             done.setSession(cs);
-            done.setTitle("Kết thúc sạc #" + booking.getBookingId());
+            done.setTitle("Sạc hoàn tất");
             done.setContentNoti(
-                    "Điểm sạc: " + pointNumber +
-                            " | Tổng thời lượng: " + sessionMinutes + " phút" +
-                            " | Thời gian sạc đến 100%: " + chargingMinutes + " phút" +
-                            " | Thời gian lãng phí sau khi đầy: " + overstayMinutes + " phút" +
-                            " | Tăng SOC: " + initialSoc + " → " + finalSoc +
-                            " | Năng lượng: " + energyKWh + " kWh" +
-                            " | Phí điện: " + energyCost + " " + tariff.getCurrency() +
-                            (timeCost > 0 ? " | Phí thời gian sau khi đầy: " + timeCost + " " + tariff.getCurrency() : "") +
-                            " | Tổng phí: " + totalCost + " " + tariff.getCurrency()
+                    "Phiên sạc tại " + pointNumber + " đã hoàn tất. " +
+                            "SOC: " + initialSoc + "% -> " + finalSoc + "%, " +
+                            "Năng lượng: " + energyKWh + " kWh, " +
+                            "Tổng phí: " + totalCost + " " + tariff.getCurrency() + "."
             );
             done.setType(NotificationTypes.CHARGING_COMPLETED);
             done.setStatus(Notification.STATUS_UNREAD);
             done.setCreatedAt(LocalDateTime.now());
             notificationsService.save(done);
+            log.info("[Notification][CHARGING_COMPLETED] saved notiId={} userId={} sessionId={} bookingId={}",
+                    done.getNotiId(), user.getUserId(), cs.getSessionId(), booking.getBookingId());
             eventPublisher.publishEvent(new NotificationCreatedEvent(done.getNotiId()));
         }
 

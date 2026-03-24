@@ -132,6 +132,9 @@ public class SecurityConfig {
                 "http://127.0.0.1:5174",    // 👈 thêm dòng này
                 "http://evcharge-files-storage.s3-website-ap-southeast-1.amazonaws.com",
                 "https://evm-flax.vercel.app",
+                "https://evcsystem.online",
+                "http://evcsystem.online",
+                "https://d77t38tltzbkw.cloudfront.net",
                 "http://localhost:3000",
                 "http://127.0.0.1:3000"
         ));
