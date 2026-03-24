@@ -41,7 +41,7 @@ public class NotificationsServiceImpl implements NotificationsService {
     public List<CreateNotificationResponse> getNotificationsByUser(Long userId) {
         return notificationsRepository.findByUserUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(notificationMapper::mapToResponse) // map từng entity sang DTO (CreateNotificationResponse)
+            .map(notificationMapper::mapToResponse) // map từng entity sang DTO (CreateNotificationResponse)
                 .collect(Collectors.toList());
     }
 

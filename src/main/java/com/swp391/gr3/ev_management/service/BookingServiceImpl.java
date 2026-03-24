@@ -199,14 +199,14 @@ public class BookingServiceImpl implements BookingService {
             noti.setUser(user);
             noti.setTitle("Đặt lịch thành công");
             noti.setContentNoti("Trạm: " + stationName + " | Khung giờ: " + timeRange
-                    + ". Vui lòng kiểm tra email để lấy mã QR.");
+                + ". Vui lòng kiểm tra email để lấy mã QR.");
             noti.setType(NotificationTypes.BOOKING_CONFIRMED);
             noti.setStatus(Notification.STATUS_UNREAD);
             noti.setBooking(booking);
 
             notificationsService.save(noti);
             log.info("[Notification][BOOKING] saved notiId={} userId={} bookingId={}",
-                    noti.getNotiId(), user.getUserId(), booking.getBookingId());
+                noti.getNotiId(), user.getUserId(), booking.getBookingId());
         } else {
             log.warn("[Notification][BOOKING] skip save: user null for bookingId={}", booking.getBookingId());
         }

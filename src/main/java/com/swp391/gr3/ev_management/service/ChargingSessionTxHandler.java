@@ -245,17 +245,17 @@ public class ChargingSessionTxHandler {
             done.setSession(cs);
             done.setTitle("Sạc hoàn tất");
             done.setContentNoti(
-                    "Phiên sạc tại " + pointNumber + " đã hoàn tất. " +
-                            "SOC: " + initialSoc + "% -> " + finalSoc + "%, " +
-                            "Năng lượng: " + energyKWh + " kWh, " +
-                            "Tổng phí: " + totalCost + " " + tariff.getCurrency() + "."
+                "Phiên sạc tại " + pointNumber + " đã hoàn tất. " +
+                    "SOC: " + initialSoc + "% -> " + finalSoc + "%, " +
+                    "Năng lượng: " + energyKWh + " kWh, " +
+                    "Tổng phí: " + totalCost + " " + tariff.getCurrency() + "."
             );
             done.setType(NotificationTypes.CHARGING_COMPLETED);
             done.setStatus(Notification.STATUS_UNREAD);
             done.setCreatedAt(LocalDateTime.now());
             notificationsService.save(done);
             log.info("[Notification][CHARGING_COMPLETED] saved notiId={} userId={} sessionId={} bookingId={}",
-                    done.getNotiId(), user.getUserId(), cs.getSessionId(), booking.getBookingId());
+                done.getNotiId(), user.getUserId(), cs.getSessionId(), booking.getBookingId());
             eventPublisher.publishEvent(new NotificationCreatedEvent(done.getNotiId()));
         }
 
