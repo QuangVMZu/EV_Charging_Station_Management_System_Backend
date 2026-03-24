@@ -8,6 +8,7 @@ import com.swp391.gr3.ev_management.mapper.NotificationMapper;
 import com.swp391.gr3.ev_management.repository.NotificationsRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.swp391.gr3.ev_management.dto.response.CreateNotificationResponse;
 
@@ -17,13 +18,13 @@ import java.util.stream.Collectors;
 
 @Service // Đánh dấu class là Spring Service — chứa logic xử lý thông báo (Notification)
 @RequiredArgsConstructor // Tự động tạo constructor cho các field final
+@Slf4j
 public class NotificationsServiceImpl implements NotificationsService {
 
     // Repository thao tác với bảng Notification trong DB
     private final NotificationsRepository notificationsRepository;
     // Mapper chuyển đổi giữa Entity <-> DTO
     private final NotificationMapper notificationMapper;
-    private final NotificationMapper mapper; // (dường như trùng với notificationMapper — nhưng vẫn được inject)
 
     @Override
     public void save(Notification noti) {
@@ -38,9 +39,9 @@ public class NotificationsServiceImpl implements NotificationsService {
      */
     @Override
     public List<CreateNotificationResponse> getNotificationsByUser(Long userId) {
-        return notificationsRepository.findByUser_UserId(userId)
+        return notificationsRepository.findByUserUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(mapper::mapToResponse) // map từng entity sang DTO (CreateNotificationResponse)
+            .map(notificationMapper::mapToResponse) // map từng entity sang DTO (CreateNotificationResponse)
                 .collect(Collectors.toList());
     }
 
@@ -51,7 +52,7 @@ public class NotificationsServiceImpl implements NotificationsService {
      */
     @Override
     public Long getUnreadCount(Long userId) {
-        return notificationsRepository.countByUser_UserIdAndStatus(userId, "unread");
+        return notificationsRepository.countByUser_UserIdAndStatus(userId, Notification.STATUS_UNREAD);
     }
 
     /**
@@ -74,7 +75,7 @@ public class NotificationsServiceImpl implements NotificationsService {
         }
 
         // Đặt trạng thái sang READ và ghi nhận thời gian đọc
-        n.setStatus("READ");
+        n.setStatus(Notification.STATUS_READ);
         n.setReadAt(LocalDateTime.now());
 
         // Lưu lại thay đổi vào DB
@@ -105,8 +106,8 @@ public class NotificationsServiceImpl implements NotificationsService {
         }
 
         // Nếu thông báo chưa đọc → tự động chuyển sang trạng thái "READ"
-        if ("UNREAD".equalsIgnoreCase(notification.getStatus())) {
-            notification.setStatus("READ");
+        if (Notification.STATUS_UNREAD.equalsIgnoreCase(notification.getStatus())) {
+            notification.setStatus(Notification.STATUS_READ);
             notification.setReadAt(LocalDateTime.now());
             notificationsRepository.save(notification);
         }
@@ -118,6 +119,7 @@ public class NotificationsServiceImpl implements NotificationsService {
     @Override
     @Transactional
     public void markAllAsRead(Long userId) {
+        log.info("[Notification] markAllAsRead userId={}", userId);
         notificationsRepository.markAllAsReadByUserId(userId);
     }
 }

@@ -184,9 +184,6 @@ public class BookingServiceImpl implements BookingService {
                 slot.getTemplate().getEndTime()
         );
 
-        // Tạo Notification xác nhận booking cho user sở hữu xe
-        Notification noti = new Notification();
-
         User user = null;
         if (booking.getVehicle() != null &&
                 booking.getVehicle().getDriver() != null &&
@@ -195,18 +192,24 @@ public class BookingServiceImpl implements BookingService {
             user = booking.getVehicle().getDriver().getUser();
         }
 
+        Notification noti = null;
         if (user != null) {
+            // In-app notification chạy song song với email listener
+            noti = new Notification();
             noti.setUser(user);
+            noti.setTitle("Đặt lịch thành công");
+            noti.setContentNoti("Trạm: " + stationName + " | Khung giờ: " + timeRange
+                + ". Vui lòng kiểm tra email để lấy mã QR.");
+            noti.setType(NotificationTypes.BOOKING_CONFIRMED);
+            noti.setStatus(Notification.STATUS_UNREAD);
+            noti.setBooking(booking);
+
+            notificationsService.save(noti);
+            log.info("[Notification][BOOKING] saved notiId={} userId={} bookingId={}",
+                noti.getNotiId(), user.getUserId(), booking.getBookingId());
+        } else {
+            log.warn("[Notification][BOOKING] skip save: user null for bookingId={}", booking.getBookingId());
         }
-
-        noti.setTitle("Xác nhận đặt chỗ #" + booking.getBookingId());
-        noti.setContentNoti("Trạm: " + stationName + " | Khung giờ: " + timeRange
-                + " | Cổng: " + slot.getChargingPoint().getConnectorType().getDisplayName());
-        noti.setType(NotificationTypes.BOOKING_CONFIRMED);
-        noti.setStatus(Notification.STATUS_UNREAD);
-        noti.setBooking(booking);
-
-        notificationsService.save(noti);
 
         // Xóa log cũ của booking này (nếu tồn tại) để tránh duplicate khi confirm nhiều lần
         if (bookingSlotLogRepository.existsByBooking_BookingId(bookingId)) {
@@ -245,7 +248,9 @@ public class BookingServiceImpl implements BookingService {
 
         // Publish event để các listener khác trong hệ thống lắng nghe và xử lý
         // Ví dụ: gửi email, gửi push notification qua các kênh khác.
-        eventPublisher.publishEvent(new NotificationCreatedEvent(noti.getNotiId()));
+        if (noti != null) {
+            eventPublisher.publishEvent(new NotificationCreatedEvent(noti.getNotiId()));
+        }
 
         // Trả về DTO BookingResponse sau khi confirm, bao gồm thông tin booking, slot, price, timeRange...
         return bookingResponseMapper.forConfirm(booking, slot, price, timeRange);

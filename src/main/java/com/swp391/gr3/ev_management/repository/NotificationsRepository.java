@@ -119,7 +119,7 @@ public interface NotificationsRepository extends JpaRepository<Notification, Lon
         update Notification n
         set n.status = 'READ', n.readAt = CURRENT_TIMESTAMP
         where n.user.userId = :userId
-          and (upper(n.status) = 'UNREAD' or lower(n.status) = 'unread')
+            and upper(n.status) = 'UNREAD'
     """)
     int markAllAsReadByUserId(@Param("userId") Long userId);
 
