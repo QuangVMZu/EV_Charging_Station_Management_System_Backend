@@ -74,13 +74,7 @@ public class NotificationController {
     public ResponseEntity<?> getAllNotifications(Authentication auth) {
         Long userId = Long.valueOf(auth.getName()); // 🟢 Lấy userId của người dùng hiện tại
         var notifications = notificationsService.getNotificationsByUser(userId); // 🟢 Lấy danh sách tất cả thông báo của user
-
-        if (notifications == null || notifications.isEmpty()) {
-            // ❌ Nếu không có thông báo -> trả về 200 OK kèm message "Không có thông báo"
-            return ResponseEntity.ok(Map.of("message", "Không có thông báo"));
-        }
-
-        // ✅ Nếu có thông báo -> trả về danh sách
+        // ✅ Luôn trả về list để FE render ổn định
         return ResponseEntity.ok(notifications);
     }
 
