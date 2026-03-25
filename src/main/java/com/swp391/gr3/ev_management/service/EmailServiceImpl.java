@@ -1,5 +1,6 @@
 package com.swp391.gr3.ev_management.service;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -17,11 +19,23 @@ import org.thymeleaf.context.Context;
 @Slf4j
 public class EmailServiceImpl implements EmailService {
 
+    private static final String DEFAULT_FROM = "no-reply@evcsystem.online";
+
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
     @Value("${app.notifications.email.from:no-reply@evcsystem.online}")
     private String from;
+
+    @Value("${app.notifications.email.enabled:true}")
+    private boolean emailEnabled;
+
+    @PostConstruct
+    void normalizeMailConfig() {
+        if (!StringUtils.hasText(from)) {
+            from = DEFAULT_FROM;
+        }
+    }
 
     @Async("mailExecutor")
     @Override
@@ -33,6 +47,10 @@ public class EmailServiceImpl implements EmailService {
                                          Object type,
                                          Object status,
                                          Object createdAt) {
+        if (!canSend("notification-template", to, subject)) {
+            return;
+        }
+
         try {
             Context ctx = new Context();
             ctx.setVariable("displayName", safe(displayName));
@@ -53,9 +71,9 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(html, true);
 
             mailSender.send(msg);
-            log.info("Notification email sent successfully to {}", to);
+            log.info("Email sent type=notification-template to={} subject={}", to, subject);
         } catch (Exception e) {
-            log.error("sendNotificationEmailTpl failed for recipient={}", to, e);
+            log.error("Email send failed type=notification-template to={} subject={}", to, subject, e);
         }
     }
 
@@ -67,6 +85,10 @@ public class EmailServiceImpl implements EmailService {
                                         Long bookingId,
                                         String stationName,
                                         String timeRange) {
+        if (!canSend("booking-cancelled", to, subject)) {
+            return;
+        }
+
         try {
             MimeMessage mime = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mime, true, "UTF-8");
@@ -85,9 +107,10 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(html, true);
 
             mailSender.send(mime);
-            log.info("Booking-cancelled email sent successfully to {}, bookingId={}", to, bookingId);
+            log.info("Email sent type=booking-cancelled to={} bookingId={} subject={}", to, bookingId, subject);
         } catch (Exception e) {
-            log.error("Failed to send booking-cancelled email to {}, bookingId={}", to, bookingId, e);
+            log.error("Email send failed type=booking-cancelled to={} bookingId={} subject={}",
+                    to, bookingId, subject, e);
         }
     }
 
@@ -102,6 +125,10 @@ public class EmailServiceImpl implements EmailService {
                                         String slotName,
                                         String connectorType,
                                         byte[] qrBytes) {
+        if (!canSend("booking-confirmed", to, subject)) {
+            return;
+        }
+
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
@@ -127,15 +154,20 @@ public class EmailServiceImpl implements EmailService {
             }
 
             mailSender.send(msg);
-            log.info("Booking-confirmed email sent successfully to {}, bookingId={}", to, bookingId);
+            log.info("Email sent type=booking-confirmed to={} bookingId={} subject={}", to, bookingId, subject);
         } catch (Exception e) {
-            log.error("Failed to send booking-confirmed email to {}, bookingId={}", to, bookingId, e);
+            log.error("Email send failed type=booking-confirmed to={} bookingId={} subject={}",
+                    to, bookingId, subject, e);
         }
     }
 
     @Async("mailExecutor")
     @Override
     public void sendPasswordEmailHtml(String to, String password) {
+        if (!canSend("password-first-login", to, "EV Station – Mật khẩu đăng nhập lần đầu")) {
+            return;
+        }
+
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
@@ -151,10 +183,22 @@ public class EmailServiceImpl implements EmailService {
             helper.setText(html, true);
 
             mailSender.send(msg);
-            log.info("Password email sent successfully to {}", to);
+            log.info("Email sent type=password-first-login to={}", to);
         } catch (Exception e) {
-            log.error("Failed to send HTML password email to {}", to, e);
+            log.error("Email send failed type=password-first-login to={}", to, e);
         }
+    }
+
+    private boolean canSend(String emailType, String to, String subject) {
+        if (!emailEnabled) {
+            log.warn("Email sending disabled type={} to={} subject={}", emailType, to, subject);
+            return false;
+        }
+        if (!StringUtils.hasText(to)) {
+            log.warn("Email recipient missing type={} subject={}", emailType, subject);
+            return false;
+        }
+        return true;
     }
 
     private static String safe(Object o) {
