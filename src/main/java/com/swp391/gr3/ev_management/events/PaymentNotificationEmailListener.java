@@ -14,7 +14,6 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.text.NumberFormat;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -26,16 +25,18 @@ public class PaymentNotificationEmailListener {
     private final NotificationsRepository notificationsRepository;
     private final EmailService emailService;
 
-    private static final ZoneId TENANT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationCreated(NotificationCreatedEvent event) {
-        notificationsRepository.findById(event.notificationId()).ifPresent(n -> {
+        log.info("[PaymentNotificationEmailListener] received event notificationId={}", event.notificationId());
+
+        notificationsRepository.findById(event.notificationId()).ifPresentOrElse(n -> {
             var type = n.getType();
             if (type != NotificationTypes.PAYMENT_SUCCESS && type != NotificationTypes.PAYMENT_FAILED) {
-                return; // chỉ xử lý payment
+                log.debug("[PaymentNotificationEmailListener] skip notification {} type={}", n.getNotiId(), type);
+                return;
             }
 
             var user = n.getUser();
@@ -47,18 +48,16 @@ public class PaymentNotificationEmailListener {
             final String to = user.getEmail();
             final String displayName = (user.getName() == null || user.getName().isBlank()) ? "bạn" : user.getName();
 
-            // Lấy transaction từ notification
             Transaction tx = n.getTransaction();
             if (tx == null) {
                 log.debug("[PaymentNotificationEmailListener] skip: notification {} has no transaction", n.getNotiId());
                 return;
             }
 
-            // Suy ra invoice & session qua transaction
             Invoice invoice = tx.getInvoice();
-            var session  = (invoice != null) ? invoice.getSession() : n.getSession();
-            var booking  = (session != null) ? session.getBooking() : null;
-            var station  = (booking != null) ? booking.getStation() : null;
+            var session = (invoice != null) ? invoice.getSession() : n.getSession();
+            var booking = (session != null) ? session.getBooking() : null;
+            var station = (booking != null) ? booking.getStation() : null;
 
             String stationName = (station != null) ? safe(station.getStationName()) : "trạm sạc";
             String timeRange =
@@ -93,7 +92,8 @@ public class PaymentNotificationEmailListener {
                             + ". Vui lòng thử lại hoặc chọn phương thức khác.";
                 }
 
-                // Gửi bằng template chung
+                log.info("[PaymentNotificationEmailListener] sending payment email type={} notificationId={} to={}",
+                        type, n.getNotiId(), to);
                 emailService.sendNotificationEmailTpl(
                         to,
                         subject,
@@ -106,15 +106,18 @@ public class PaymentNotificationEmailListener {
                 );
 
             } catch (Exception mailEx) {
-                log.error("[PaymentNotificationEmailListener] failed to send email for notification {}: {}",
-                        n.getNotiId(), mailEx.getMessage(), mailEx);
+                log.error("[PaymentNotificationEmailListener] failed to send email for notification {}",
+                        n.getNotiId(), mailEx);
             }
-        });
+        }, () -> log.warn("[PaymentNotificationEmailListener] notification {} not found", event.notificationId()));
     }
 
     private static String fmtAmount(double amount, String currency) {
         NumberFormat nf = NumberFormat.getInstance(new Locale("vi", "VN"));
         return nf.format(amount) + " " + (currency != null ? currency : "VND");
     }
-    private static String safe(Object o) { return o == null ? "" : String.valueOf(o); }
+
+    private static String safe(Object o) {
+        return o == null ? "" : String.valueOf(o);
+    }
 }
